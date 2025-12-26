@@ -49,6 +49,8 @@ function App() {
     calculatedStats,
     loading,
     error,
+    healthRegenTime,
+    staminaRegenTime,
     addExp,
     addCoins,
     investAbilityPoint,
@@ -71,30 +73,8 @@ function App() {
       }
     }, 1000);
 
-    const staminaInterval = setInterval(() => {
-      if (calculatedStats && stats && calculatedStats.stamina.current < calculatedStats.stamina.max) {
-        const newStamina = Math.min(
-          calculatedStats.stamina.current + calculatedStats.stamina.regenRate,
-          calculatedStats.stamina.max
-        );
-        updateCurrentStat('stamina_current', newStamina);
-      }
-    }, 60000);
-
-    const healthInterval = setInterval(() => {
-      if (calculatedStats && stats && calculatedStats.health.current < calculatedStats.health.max) {
-        const newHealth = Math.min(
-          calculatedStats.health.current + calculatedStats.health.regenRate,
-          calculatedStats.health.max
-        );
-        updateCurrentStat('health_current', newHealth);
-      }
-    }, 3600000);
-
     return () => {
       clearInterval(energyInterval);
-      clearInterval(staminaInterval);
-      clearInterval(healthInterval);
     };
   }, [calculatedStats, stats, updateCurrentStat]);
 
@@ -212,6 +192,8 @@ function App() {
         <MainTapScreen
           player={player}
           stats={calculatedStats}
+          healthRegenTime={healthRegenTime}
+          staminaRegenTime={staminaRegenTime}
           onPatrol={handlePatrol}
           onEncounter={handleEncounter}
           onHapticFeedback={hapticFeedback.light}

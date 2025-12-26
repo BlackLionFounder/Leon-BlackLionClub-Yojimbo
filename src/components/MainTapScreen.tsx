@@ -13,6 +13,8 @@ interface EventLog {
 interface MainTapScreenProps {
   player: Player;
   stats: CalculatedStats;
+  healthRegenTime: number;
+  staminaRegenTime: number;
   onPatrol: (expGained: number) => void;
   onEncounter: () => void;
   onHapticFeedback: () => void;
@@ -22,7 +24,7 @@ const PATROL_STAMINA_COST = 1;
 const PATROL_EXP_REWARD = 1;
 const ENCOUNTER_CHANCE = 0.15;
 
-export function MainTapScreen({ player, stats, onPatrol, onEncounter, onHapticFeedback }: MainTapScreenProps) {
+export function MainTapScreen({ player, stats, healthRegenTime, staminaRegenTime, onPatrol, onEncounter, onHapticFeedback }: MainTapScreenProps) {
   const [tapAnimations, setTapAnimations] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
 
@@ -30,6 +32,21 @@ export function MainTapScreen({ player, stats, onPatrol, onEncounter, onHapticFe
   const tierName = getLeonTierName(player.level);
   const expRequired = calculateExpRequired(player.level);
   const expProgress = (player.current_exp / expRequired) * 100;
+
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    } else {
+      return `${seconds}s`;
+    }
+  };
 
   useEffect(() => {
     loadEventLogs();
@@ -166,6 +183,11 @@ export function MainTapScreen({ player, stats, onPatrol, onEncounter, onHapticFe
             <div className="text-white font-bold">
               {Math.floor(stats.health.current)} / {stats.health.max}
             </div>
+            {stats.health.current < stats.health.max && (
+              <div className="text-xs text-gray-500 mt-1">
+                +1 in {formatTime(healthRegenTime)}
+              </div>
+            )}
           </div>
 
           <div className="bg-gray-800 rounded-lg p-3 border border-green-900">
@@ -176,6 +198,11 @@ export function MainTapScreen({ player, stats, onPatrol, onEncounter, onHapticFe
             <div className="text-white font-bold">
               {Math.floor(stats.stamina.current)} / {stats.stamina.max}
             </div>
+            {stats.stamina.current < stats.stamina.max && (
+              <div className="text-xs text-gray-500 mt-1">
+                +1 in {formatTime(staminaRegenTime)}
+              </div>
+            )}
           </div>
 
           <div className="bg-gray-800 rounded-lg p-3 border border-blue-900">

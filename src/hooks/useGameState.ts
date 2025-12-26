@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Player, PlayerStats, CalculatedStats } from '../types/game';
 import { calculateStats, calculateExpRequired, canLevelUp } from '../utils/calculations';
-import { ABILITY_POINTS_PER_LEVEL, REFERRAL_BONUS_AP, MAX_REFERRAL_BONUSES } from '../data/constants';
+import { ABILITY_POINTS_PER_LEVEL, REFERRAL_BONUS_AP, MAX_REFERRAL_BONUSES, HEALTH_REGEN_INTERVAL_MS, STAMINA_REGEN_INTERVAL_MS } from '../data/constants';
 
 export function useGameState(userId: string | null) {
   const [player, setPlayer] = useState<Player | null>(null);
@@ -10,6 +10,8 @@ export function useGameState(userId: string | null) {
   const [calculatedStats, setCalculatedStats] = useState<CalculatedStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [healthRegenTime, setHealthRegenTime] = useState<number>(0);
+  const [staminaRegenTime, setStaminaRegenTime] = useState<number>(0);
 
   const loadPlayerData = useCallback(async () => {
     if (!userId) {
@@ -61,6 +63,60 @@ export function useGameState(userId: string | null) {
       setCalculatedStats(calculateStats(stats));
     }
   }, [player, stats]);
+
+  useEffect(() => {
+    if (!player || !stats || !calculatedStats) return;
+
+    const checkRegeneration = async () => {
+      const now = Date.now();
+      const lastHealthRegen = new Date(player.last_health_regen).getTime();
+      const lastStaminaRegen = new Date(player.last_stamina_regen).getTime();
+
+      const healthTimeSince = now - lastHealthRegen;
+      const staminaTimeSince = now - lastStaminaRegen;
+
+      const healthTimeUntilNext = Math.max(0, HEALTH_REGEN_INTERVAL_MS - (healthTimeSince % HEALTH_REGEN_INTERVAL_MS));
+      const staminaTimeUntilNext = Math.max(0, STAMINA_REGEN_INTERVAL_MS - (staminaTimeSince % STAMINA_REGEN_INTERVAL_MS));
+
+      setHealthRegenTime(healthTimeUntilNext);
+      setStaminaRegenTime(staminaTimeUntilNext);
+
+      const healthPointsToRegen = Math.floor(healthTimeSince / HEALTH_REGEN_INTERVAL_MS);
+      const staminaPointsToRegen = Math.floor(staminaTimeSince / STAMINA_REGEN_INTERVAL_MS);
+
+      if (healthPointsToRegen > 0 || staminaPointsToRegen > 0) {
+        const updates: Partial<PlayerStats> = {};
+        const playerUpdates: Partial<Player> = {};
+
+        if (healthPointsToRegen > 0 && stats.health_current < calculatedStats.health.max) {
+          const newHealth = Math.min(stats.health_current + healthPointsToRegen, calculatedStats.health.max);
+          updates.health_current = newHealth;
+          playerUpdates.last_health_regen = new Date(lastHealthRegen + (healthPointsToRegen * HEALTH_REGEN_INTERVAL_MS)).toISOString();
+        }
+
+        if (staminaPointsToRegen > 0 && stats.stamina_current < calculatedStats.stamina.max) {
+          const newStamina = Math.min(stats.stamina_current + staminaPointsToRegen, calculatedStats.stamina.max);
+          updates.stamina_current = newStamina;
+          playerUpdates.last_stamina_regen = new Date(lastStaminaRegen + (staminaPointsToRegen * STAMINA_REGEN_INTERVAL_MS)).toISOString();
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('player_stats').update(updates).eq('player_id', player.id);
+          setStats({ ...stats, ...updates });
+        }
+
+        if (Object.keys(playerUpdates).length > 0) {
+          await supabase.from('players').update(playerUpdates).eq('id', player.id);
+          setPlayer({ ...player, ...playerUpdates });
+        }
+      }
+    };
+
+    checkRegeneration();
+    const interval = setInterval(checkRegeneration, 1000);
+
+    return () => clearInterval(interval);
+  }, [player, stats, calculatedStats]);
 
   const createNewPlayer = async (uid: string) => {
     const { data: userData } = await supabase.auth.getUser();
@@ -128,6 +184,19 @@ export function useGameState(userId: string | null) {
       .single();
 
     if (statsError) throw statsError;
+
+    await supabase.from('player_inventory').insert([
+      {
+        player_id: newPlayerData.id,
+        item_type: 'health_potion',
+        quantity: 5
+      },
+      {
+        player_id: newPlayerData.id,
+        item_type: 'stamina_potion',
+        quantity: 5
+      }
+    ]);
 
     return { player: newPlayerData, stats: newStatsData };
   };
@@ -201,10 +270,18 @@ export function useGameState(userId: string | null) {
   }, [player]);
 
   const investAbilityPoint = useCallback(async (statName: keyof Omit<PlayerStats, 'player_id' | 'health_base' | 'stamina_base' | 'energy_base' | 'health_current' | 'stamina_current' | 'energy_current'>) => {
-    if (!player || !stats || player.unspent_ability_points <= 0) return;
+    if (!player || !stats || !calculatedStats || player.unspent_ability_points <= 0) return;
 
     const newStats = { ...stats, [statName]: stats[statName] + 1 };
     const wasFirstAllocation = !player.has_allocated_points;
+
+    if (statName === 'health_invested') {
+      newStats.health_current = stats.health_current + 1;
+    } else if (statName === 'stamina_invested') {
+      newStats.stamina_current = stats.stamina_current + 1;
+    } else if (statName === 'energy_invested') {
+      newStats.energy_current = stats.energy_current + 1;
+    }
 
     const { error: statsError } = await supabase
       .from('player_stats')
@@ -235,7 +312,7 @@ export function useGameState(userId: string | null) {
         has_allocated_points: wasFirstAllocation ? true : player.has_allocated_points
       });
     }
-  }, [player, stats]);
+  }, [player, stats, calculatedStats]);
 
   const updateCurrentStat = useCallback(async (statName: 'health_current' | 'stamina_current' | 'energy_current', newValue: number) => {
     if (!stats || !player) return;
@@ -256,6 +333,8 @@ export function useGameState(userId: string | null) {
     calculatedStats,
     loading,
     error,
+    healthRegenTime,
+    staminaRegenTime,
     addExp,
     addCoins,
     investAbilityPoint,
