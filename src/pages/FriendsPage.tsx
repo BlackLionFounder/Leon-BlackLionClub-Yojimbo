@@ -40,7 +40,7 @@ const FriendsPage: React.FC = () => {
     { rank: 4, username: 'DiamondLegend', points: 32000000, level: 7, totalReferrals: 142 },
     { rank: 5, username: 'GoldenHamster', points: 28000000, level: 7, totalReferrals: 128 },
     { rank: 6, username: 'ProTrader', points: 25000000, level: 7, totalReferrals: 115 },
-    { rank: 7, username: 'ElitePlayer', points: 22749365, level: 7, totalReferrals: 98 },
+    { rank: 7, username: 'Nikandr (CEO)', points: 22749365, level: 7, totalReferrals: 98 },
     { rank: 8, username: 'CoinCollector', points: 20000000, level: 6, totalReferrals: 87 },
     { rank: 9, username: 'MegaWhale', points: 18500000, level: 6, totalReferrals: 76 },
     { rank: 10, username: 'UltraHamster', points: 17200000, level: 6, totalReferrals: 65 },
