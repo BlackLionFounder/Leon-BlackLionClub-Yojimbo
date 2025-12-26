@@ -86,8 +86,13 @@ function App() {
     await updateCurrentStat('stamina_current', newStamina);
   };
 
-  const handleEncounter = () => {
+  const handleEncounter = async () => {
     if (!player || !calculatedStats) return;
+
+    if (calculatedStats.health.current <= 0) {
+      const restoredHealth = Math.floor(calculatedStats.health.max * 0.25);
+      await updateCurrentStat('health_current', restoredHealth);
+    }
 
     const monster = generateMonster(player.level);
     setCurrentMonster(monster);
@@ -111,7 +116,13 @@ function App() {
     healthAfter: number,
     energyAfter: number
   ) => {
-    await updateCurrentStat('health_current', healthAfter);
+    if (outcome === 'defeat' && healthAfter <= 0 && calculatedStats) {
+      const restoredHealth = Math.floor(calculatedStats.health.max * 0.25);
+      await updateCurrentStat('health_current', restoredHealth);
+    } else {
+      await updateCurrentStat('health_current', healthAfter);
+    }
+
     await updateCurrentStat('energy_current', energyAfter);
 
     if (outcome === 'victory') {
@@ -132,7 +143,7 @@ function App() {
         await supabase.from('event_logs').insert({
           player_id: player.id,
           event_type: 'combat_defeat',
-          message: `Defeated by ${currentMonster.name} (Lv.${currentMonster.level}). Lost ${Math.abs(expGained)} EXP.`
+          message: `Defeated by ${currentMonster.name} (Lv.${currentMonster.level}). Lost ${Math.abs(expGained)} EXP. Health restored to 25%.`
         });
       }
     } else if (outcome === 'fled') {

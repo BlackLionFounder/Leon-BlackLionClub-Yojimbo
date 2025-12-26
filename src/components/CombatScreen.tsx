@@ -17,7 +17,12 @@ export function CombatScreen({ player, stats, monster, onCombatEnd, onHapticFeed
   const [playerEnergy, setPlayerEnergy] = useState(stats.energy.current);
   const [monsterHealth, setMonsterHealth] = useState(monster.health);
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
-  const [combatManager] = useState(() => new CombatManager(stats, monster, setPlayerHealth, setMonsterHealth, setPlayerEnergy));
+  const [combatManager] = useState(() => {
+    const statsCopy = JSON.parse(JSON.stringify(stats));
+    statsCopy.health.current = stats.health.current;
+    statsCopy.energy.current = stats.energy.current;
+    return new CombatManager(statsCopy, monster, setPlayerHealth, setMonsterHealth, setPlayerEnergy);
+  });
 
   const leonImage = getLeonAppearanceForLevel(player.level);
 
