@@ -7,8 +7,12 @@ import Settings from './icons/Settings';
 import Mine from './icons/Mine';
 import Friends from './icons/Friends';
 import Coins from './icons/Coins';
+import FriendsPage from './pages/FriendsPage';
+
+type Page = 'home' | 'friends';
 
 const App: React.FC = () => {
+  const [currentPage, setCurrentPage] = useState<Page>('home');
   const levelNames = [
     "Bronze",    // From 0 to 4999 coins
     "Silver",    // From 5000 coins to 24,999 coins
@@ -130,6 +134,10 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [profitPerHour]);
 
+  if (currentPage === 'friends') {
+    return <FriendsPage onBack={() => setCurrentPage('home')} />;
+  }
+
   return (
     <div className="bg-black flex justify-center">
       <div className="w-full bg-black text-white h-screen font-bold flex flex-col max-w-xl">
@@ -227,7 +235,7 @@ const App: React.FC = () => {
           <Mine className="w-8 h-8 mx-auto" />
           <p className="mt-1">Mine</p>
         </div>
-        <div className="text-center text-[#85827d] w-1/5">
+        <div className="text-center text-[#85827d] w-1/5 cursor-pointer" onClick={() => setCurrentPage('friends')}>
           <Friends className="w-8 h-8 mx-auto" />
           <p className="mt-1">Friends</p>
         </div>
