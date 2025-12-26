@@ -94,7 +94,26 @@ export function useGameState(telegramId: string | null) {
       .select()
       .single();
 
-    if (createError) throw createError;
+    if (createError) {
+      if (createError.code === '23505') {
+        const { data: existingPlayer } = await supabase
+          .from('players')
+          .select('*')
+          .eq('telegram_id', tgId)
+          .single();
+
+        if (existingPlayer) {
+          const { data: existingStats } = await supabase
+            .from('player_stats')
+            .select('*')
+            .eq('player_id', existingPlayer.id)
+            .single();
+
+          return { player: existingPlayer, stats: existingStats };
+        }
+      }
+      throw createError;
+    }
 
     const { data: newStatsData, error: statsError } = await supabase
       .from('player_stats')
