@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Player, PlayerStats, CalculatedStats } from '../types/game';
 import { calculateStats, calculateExpRequired, canLevelUp } from '../utils/calculations';
-import { ABILITY_POINTS_PER_LEVEL, REFERRAL_BONUS_AP, MAX_REFERRAL_BONUSES, HEALTH_REGEN_INTERVAL_MS, STAMINA_REGEN_INTERVAL_MS } from '../data/constants';
+import { ABILITY_POINTS_PER_LEVEL, REFERRAL_BONUS_AP, MAX_REFERRAL_BONUSES } from '../data/constants';
 
 export function useGameState(userId: string | null) {
   const [player, setPlayer] = useState<Player | null>(null);
@@ -75,14 +75,17 @@ export function useGameState(userId: string | null) {
       const healthTimeSince = now - lastHealthRegen;
       const staminaTimeSince = now - lastStaminaRegen;
 
-      const healthTimeUntilNext = Math.max(0, HEALTH_REGEN_INTERVAL_MS - (healthTimeSince % HEALTH_REGEN_INTERVAL_MS));
-      const staminaTimeUntilNext = Math.max(0, STAMINA_REGEN_INTERVAL_MS - (staminaTimeSince % STAMINA_REGEN_INTERVAL_MS));
+      const healthRegenInterval = (60 * 60 * 1000) / calculatedStats.health.regenRate;
+      const staminaRegenInterval = (60 * 1000) / calculatedStats.stamina.regenRate;
+
+      const healthTimeUntilNext = Math.max(0, healthRegenInterval - (healthTimeSince % healthRegenInterval));
+      const staminaTimeUntilNext = Math.max(0, staminaRegenInterval - (staminaTimeSince % staminaRegenInterval));
 
       setHealthRegenTime(healthTimeUntilNext);
       setStaminaRegenTime(staminaTimeUntilNext);
 
-      const healthPointsToRegen = Math.floor(healthTimeSince / HEALTH_REGEN_INTERVAL_MS);
-      const staminaPointsToRegen = Math.floor(staminaTimeSince / STAMINA_REGEN_INTERVAL_MS);
+      const healthPointsToRegen = Math.floor(healthTimeSince / healthRegenInterval);
+      const staminaPointsToRegen = Math.floor(staminaTimeSince / staminaRegenInterval);
 
       if (healthPointsToRegen > 0 || staminaPointsToRegen > 0) {
         const updates: Partial<PlayerStats> = {};
@@ -91,13 +94,13 @@ export function useGameState(userId: string | null) {
         if (healthPointsToRegen > 0 && stats.health_current < calculatedStats.health.max) {
           const newHealth = Math.min(stats.health_current + healthPointsToRegen, calculatedStats.health.max);
           updates.health_current = newHealth;
-          playerUpdates.last_health_regen = new Date(lastHealthRegen + (healthPointsToRegen * HEALTH_REGEN_INTERVAL_MS)).toISOString();
+          playerUpdates.last_health_regen = new Date(lastHealthRegen + (healthPointsToRegen * healthRegenInterval)).toISOString();
         }
 
         if (staminaPointsToRegen > 0 && stats.stamina_current < calculatedStats.stamina.max) {
           const newStamina = Math.min(stats.stamina_current + staminaPointsToRegen, calculatedStats.stamina.max);
           updates.stamina_current = newStamina;
-          playerUpdates.last_stamina_regen = new Date(lastStaminaRegen + (staminaPointsToRegen * STAMINA_REGEN_INTERVAL_MS)).toISOString();
+          playerUpdates.last_stamina_regen = new Date(lastStaminaRegen + (staminaPointsToRegen * staminaRegenInterval)).toISOString();
         }
 
         if (Object.keys(updates).length > 0) {
