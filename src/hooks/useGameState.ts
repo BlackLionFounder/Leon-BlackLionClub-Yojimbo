@@ -12,11 +12,34 @@ export function useGameState(telegramId: string | null) {
   const [error, setError] = useState<string | null>(null);
 
   const loadPlayerData = useCallback(async () => {
-    if (!telegramId) return;
+    if (!telegramId) {
+      const demoId = 'demo_' + Date.now();
+      try {
+        setLoading(true);
+        setError(null);
+
+        await supabase.auth.signInAnonymously();
+
+        const newPlayer = await createNewPlayer(demoId);
+        setPlayer(newPlayer.player);
+        setStats(newPlayer.stats);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to create demo player');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
+
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        await supabase.auth.signInAnonymously();
+      }
 
       const { data: playerData, error: playerError } = await supabase
         .from('players')
