@@ -12,15 +12,18 @@ interface CombatScreenProps {
 }
 
 export function CombatScreen({ player, stats, monster, onCombatEnd, onHapticFeedback }: CombatScreenProps) {
+  const initialHealth = Math.max(1, Math.floor(stats.health.current));
+  const initialEnergy = Math.max(0, Math.floor(stats.energy.current));
+
   const [combatLog, setCombatLog] = useState<string[]>([]);
-  const [playerHealth, setPlayerHealth] = useState(stats.health.current);
-  const [playerEnergy, setPlayerEnergy] = useState(stats.energy.current);
+  const [playerHealth, setPlayerHealth] = useState(initialHealth);
+  const [playerEnergy, setPlayerEnergy] = useState(initialEnergy);
   const [monsterHealth, setMonsterHealth] = useState(monster.health);
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
   const [combatManager] = useState(() => {
     const statsCopy = JSON.parse(JSON.stringify(stats));
-    statsCopy.health.current = stats.health.current;
-    statsCopy.energy.current = stats.energy.current;
+    statsCopy.health.current = initialHealth;
+    statsCopy.energy.current = initialEnergy;
     return new CombatManager(statsCopy, monster, setPlayerHealth, setMonsterHealth, setPlayerEnergy);
   });
 

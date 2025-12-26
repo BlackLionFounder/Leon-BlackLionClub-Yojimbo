@@ -92,6 +92,7 @@ function App() {
     if (calculatedStats.health.current <= 0) {
       const restoredHealth = Math.floor(calculatedStats.health.max * 0.25);
       await updateCurrentStat('health_current', restoredHealth);
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     const monster = generateMonster(player.level);
@@ -117,13 +118,13 @@ function App() {
     energyAfter: number
   ) => {
     if (outcome === 'defeat' && healthAfter <= 0 && calculatedStats) {
-      const restoredHealth = Math.floor(calculatedStats.health.max * 0.25);
+      const restoredHealth = Math.max(1, Math.floor(calculatedStats.health.max * 0.25));
       await updateCurrentStat('health_current', restoredHealth);
     } else {
-      await updateCurrentStat('health_current', healthAfter);
+      await updateCurrentStat('health_current', Math.max(0, Math.floor(healthAfter)));
     }
 
-    await updateCurrentStat('energy_current', energyAfter);
+    await updateCurrentStat('energy_current', Math.max(0, Math.floor(energyAfter)));
 
     if (outcome === 'victory') {
       await addExp(expGained);

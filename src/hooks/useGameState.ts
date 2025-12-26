@@ -105,7 +105,7 @@ export function useGameState(userId: string | null) {
 
         if (Object.keys(updates).length > 0) {
           await supabase.from('player_stats').update(updates).eq('player_id', player.id);
-          setStats({ ...stats, ...updates });
+          setStats(prevStats => prevStats ? { ...prevStats, ...updates } : prevStats);
         }
 
         if (Object.keys(playerUpdates).length > 0) {
@@ -309,11 +309,11 @@ export function useGameState(userId: string | null) {
 
     if (!playerError) {
       setStats(newStats);
-      setPlayer({
-        ...player,
-        unspent_ability_points: player.unspent_ability_points - 1,
-        has_allocated_points: wasFirstAllocation ? true : player.has_allocated_points
-      });
+      setPlayer(prevPlayer => prevPlayer ? {
+        ...prevPlayer,
+        unspent_ability_points: prevPlayer.unspent_ability_points - 1,
+        has_allocated_points: wasFirstAllocation ? true : prevPlayer.has_allocated_points
+      } : prevPlayer);
     }
   }, [player, stats, calculatedStats]);
 
@@ -326,7 +326,7 @@ export function useGameState(userId: string | null) {
       .eq('player_id', player.id);
 
     if (!error) {
-      setStats({ ...stats, [statName]: newValue });
+      setStats(prevStats => prevStats ? { ...prevStats, [statName]: newValue } : prevStats);
     }
   }, [stats, player]);
 
