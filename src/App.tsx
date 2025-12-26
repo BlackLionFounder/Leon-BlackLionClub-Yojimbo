@@ -107,15 +107,42 @@ function App() {
     outcome: 'victory' | 'defeat' | 'fled',
     expGained: number,
     coinsGained: number,
-    _itemsGained: Array<{ itemType: string; quantity: number }>
+    _itemsGained: Array<{ itemType: string; quantity: number }>,
+    healthAfter: number,
+    energyAfter: number
   ) => {
+    await updateCurrentStat('health_current', healthAfter);
+    await updateCurrentStat('energy_current', energyAfter);
+
     if (outcome === 'victory') {
       await addExp(expGained);
       await addCoins(coinsGained);
+
+      if (player && currentMonster) {
+        await supabase.from('event_logs').insert({
+          player_id: player.id,
+          event_type: 'combat_victory',
+          message: `Victory! Defeated ${currentMonster.name} (Lv.${currentMonster.level}). Gained ${expGained} EXP and ${coinsGained} coins!`
+        });
+      }
     } else if (outcome === 'defeat') {
       await addExp(expGained);
-      const newHealth = Math.max(1, calculatedStats!.health.current);
-      await updateCurrentStat('health_current', newHealth);
+
+      if (player && currentMonster) {
+        await supabase.from('event_logs').insert({
+          player_id: player.id,
+          event_type: 'combat_defeat',
+          message: `Defeated by ${currentMonster.name} (Lv.${currentMonster.level}). Lost ${Math.abs(expGained)} EXP.`
+        });
+      }
+    } else if (outcome === 'fled') {
+      if (player && currentMonster) {
+        await supabase.from('event_logs').insert({
+          player_id: player.id,
+          event_type: 'combat_fled',
+          message: `Fled from ${currentMonster.name} (Lv.${currentMonster.level}).`
+        });
+      }
     }
 
     setIsInCombat(false);

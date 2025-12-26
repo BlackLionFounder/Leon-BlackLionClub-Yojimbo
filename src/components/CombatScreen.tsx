@@ -7,16 +7,17 @@ interface CombatScreenProps {
   player: Player;
   stats: CalculatedStats;
   monster: Monster;
-  onCombatEnd: (outcome: 'victory' | 'defeat' | 'fled', expGained: number, coinsGained: number, itemsGained: Array<{ itemType: string; quantity: number }>) => void;
+  onCombatEnd: (outcome: 'victory' | 'defeat' | 'fled', expGained: number, coinsGained: number, itemsGained: Array<{ itemType: string; quantity: number }>, healthAfter: number, energyAfter: number) => void;
   onHapticFeedback: () => void;
 }
 
 export function CombatScreen({ player, stats, monster, onCombatEnd, onHapticFeedback }: CombatScreenProps) {
   const [combatLog, setCombatLog] = useState<string[]>([]);
   const [playerHealth, setPlayerHealth] = useState(stats.health.current);
+  const [playerEnergy, setPlayerEnergy] = useState(stats.energy.current);
   const [monsterHealth, setMonsterHealth] = useState(monster.health);
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
-  const [combatManager] = useState(() => new CombatManager(stats, monster, setPlayerHealth, setMonsterHealth));
+  const [combatManager] = useState(() => new CombatManager(stats, monster, setPlayerHealth, setMonsterHealth, setPlayerEnergy));
 
   const leonImage = getLeonAppearanceForLevel(player.level);
 
@@ -85,7 +86,7 @@ export function CombatScreen({ player, stats, monster, onCombatEnd, onHapticFeed
 
     if (action.success) {
       setTimeout(() => {
-        onCombatEnd('fled', 0, 0, []);
+        onCombatEnd('fled', 0, 0, [], playerHealth, playerEnergy);
       }, 1500);
     } else {
       setIsPlayerTurn(false);
@@ -98,7 +99,7 @@ export function CombatScreen({ player, stats, monster, onCombatEnd, onHapticFeed
     addLog(`Gained ${monster.expReward} EXP and ${monster.coinReward} coins!`);
 
     setTimeout(() => {
-      onCombatEnd('victory', monster.expReward, monster.coinReward, items);
+      onCombatEnd('victory', monster.expReward, monster.coinReward, items, playerHealth, playerEnergy);
     }, 2000);
   };
 
@@ -108,7 +109,7 @@ export function CombatScreen({ player, stats, monster, onCombatEnd, onHapticFeed
     addLog(`Lost ${expLoss} EXP...`);
 
     setTimeout(() => {
-      onCombatEnd('defeat', -expLoss, 0, []);
+      onCombatEnd('defeat', -expLoss, 0, [], playerHealth, playerEnergy);
     }, 2000);
   };
 
@@ -130,16 +131,30 @@ export function CombatScreen({ player, stats, monster, onCombatEnd, onHapticFeed
               alt="Leon"
               className="w-32 h-32 object-contain mb-2"
             />
-            <div className="w-full">
-              <div className="flex justify-between text-xs text-gray-400 mb-1">
-                <span>HP</span>
-                <span>{Math.floor(playerHealth)} / {stats.health.max}</span>
+            <div className="w-full space-y-2">
+              <div>
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>HP</span>
+                  <span>{Math.floor(playerHealth)} / {stats.health.max}</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-3">
+                  <div
+                    className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all"
+                    style={{ width: `${Math.max(0, playerHealthPercent)}%` }}
+                  ></div>
+                </div>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-3">
-                <div
-                  className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all"
-                  style={{ width: `${Math.max(0, playerHealthPercent)}%` }}
-                ></div>
+              <div>
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>Energy</span>
+                  <span>{Math.floor(playerEnergy)} / {stats.energy.max}</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all"
+                    style={{ width: `${Math.max(0, (playerEnergy / stats.energy.max) * 100)}%` }}
+                  ></div>
+                </div>
               </div>
             </div>
           </div>

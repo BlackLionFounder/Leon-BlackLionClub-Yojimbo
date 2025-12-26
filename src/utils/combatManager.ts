@@ -6,17 +6,20 @@ export class CombatManager {
   private monster: Monster;
   private onPlayerDamage: (newHealth: number) => void;
   private onMonsterDamage: (newHealth: number) => void;
+  private onEnergyChange: (newEnergy: number) => void;
 
   constructor(
     playerStats: CalculatedStats,
     monster: Monster,
     onPlayerDamage: (newHealth: number) => void,
-    onMonsterDamage: (newHealth: number) => void
+    onMonsterDamage: (newHealth: number) => void,
+    onEnergyChange: (newEnergy: number) => void
   ) {
     this.playerStats = playerStats;
     this.monster = monster;
     this.onPlayerDamage = onPlayerDamage;
     this.onMonsterDamage = onMonsterDamage;
+    this.onEnergyChange = onEnergyChange;
   }
 
   playerAttack(): CombatAction {
@@ -42,9 +45,13 @@ export class CombatManager {
       return {
         type: 'magic',
         success: false,
-        message: 'Not enough energy to cast magic!'
+        message: 'Not enough energy to cast magic! Need 5 energy.'
       };
     }
+
+    const newEnergy = Math.max(0, this.playerStats.energy.current - 5);
+    this.playerStats.energy.current = newEnergy;
+    this.onEnergyChange(newEnergy);
 
     const baseDamage = Math.floor(this.playerStats.strength.value * 1.5);
     const isCritical = rollCritical(this.playerStats.luck.value);
@@ -59,7 +66,7 @@ export class CombatManager {
       damage,
       isCritical,
       success: true,
-      message: `Leon unleashes magic for ${damage} damage!`
+      message: `Leon unleashes magic for ${damage} damage! (-5 Energy)`
     };
   }
 
