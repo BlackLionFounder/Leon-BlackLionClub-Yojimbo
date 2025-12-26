@@ -4,7 +4,7 @@ import { Player, PlayerStats, CalculatedStats } from '../types/game';
 import { calculateStats, calculateExpRequired, canLevelUp } from '../utils/calculations';
 import { ABILITY_POINTS_PER_LEVEL, REFERRAL_BONUS_AP, MAX_REFERRAL_BONUSES } from '../data/constants';
 
-export function useGameState(telegramId: string | null) {
+export function useGameState(userId: string | null) {
   const [player, setPlayer] = useState<Player | null>(null);
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [calculatedStats, setCalculatedStats] = useState<CalculatedStats | null>(null);
@@ -12,20 +12,8 @@ export function useGameState(telegramId: string | null) {
   const [error, setError] = useState<string | null>(null);
 
   const loadPlayerData = useCallback(async () => {
-    if (!telegramId) {
-      const demoId = 'demo_' + Date.now();
-      try {
-        setLoading(true);
-        setError(null);
-
-        const newPlayer = await createNewPlayer(demoId);
-        setPlayer(newPlayer.player);
-        setStats(newPlayer.stats);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to create demo player');
-      } finally {
-        setLoading(false);
-      }
+    if (!userId) {
+      setLoading(false);
       return;
     }
 
@@ -36,13 +24,13 @@ export function useGameState(telegramId: string | null) {
       const { data: playerData, error: playerError } = await supabase
         .from('players')
         .select('*')
-        .eq('telegram_id', telegramId)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (playerError) throw playerError;
 
       if (!playerData) {
-        const newPlayer = await createNewPlayer(telegramId);
+        const newPlayer = await createNewPlayer(userId);
         setPlayer(newPlayer.player);
         setStats(newPlayer.stats);
       } else {
@@ -62,7 +50,7 @@ export function useGameState(telegramId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [telegramId]);
+  }, [userId]);
 
   useEffect(() => {
     loadPlayerData();
@@ -74,12 +62,16 @@ export function useGameState(telegramId: string | null) {
     }
   }, [player, stats]);
 
-  const createNewPlayer = async (tgId: string) => {
+  const createNewPlayer = async (uid: string) => {
+    const { data: userData } = await supabase.auth.getUser();
+    const displayName = userData?.user?.user_metadata?.display_name || `Player_${uid.slice(-6)}`;
+
     const { data: newPlayerData, error: createError } = await supabase
       .from('players')
       .insert({
-        telegram_id: tgId,
-        username: `Player_${tgId.slice(-6)}`,
+        user_id: uid,
+        telegram_id: null,
+        username: displayName,
         level: 1,
         current_exp: 0,
         total_exp: 0,
@@ -99,7 +91,7 @@ export function useGameState(telegramId: string | null) {
         const { data: existingPlayer } = await supabase
           .from('players')
           .select('*')
-          .eq('telegram_id', tgId)
+          .eq('user_id', uid)
           .single();
 
         if (existingPlayer) {

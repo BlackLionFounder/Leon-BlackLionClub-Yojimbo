@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from './lib/supabase';
 import { useTelegram } from './hooks/useTelegram';
 import { useGameState } from './hooks/useGameState';
 import { GameTab, Monster } from './types/game';
@@ -10,10 +11,26 @@ import { FriendsScreen } from './components/FriendsScreen';
 import { EarnScreen } from './components/EarnScreen';
 import { Navigation } from './components/Navigation';
 import { SpiralTransition } from './components/SpiralTransition';
+import { AuthScreen } from './components/AuthScreen';
 
 function App() {
-  const { user, hapticFeedback } = useTelegram();
-  const telegramId = user?.id?.toString() || null;
+  const { hapticFeedback } = useTelegram();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUserId(session?.user?.id || null);
+      setAuthLoading(false);
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUserId(session?.user?.id || null);
+      });
+
+      return () => subscription.unsubscribe();
+    })();
+  }, []);
 
   const {
     player,
@@ -25,7 +42,7 @@ function App() {
     addCoins,
     investAbilityPoint,
     updateCurrentStat
-  } = useGameState(telegramId);
+  } = useGameState(userId);
 
   const [activeTab, setActiveTab] = useState<GameTab>('main');
   const [isInCombat, setIsInCombat] = useState(false);
@@ -119,6 +136,25 @@ function App() {
     hapticFeedback.selection();
     setActiveTab(tab);
   };
+
+  const handleAuthSuccess = () => {
+    setAuthLoading(true);
+  };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🦁</div>
+          <p className="text-xl">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
+  }
 
   if (loading) {
     return (
