@@ -18,8 +18,6 @@ export function useGameState(telegramId: string | null) {
         setLoading(true);
         setError(null);
 
-        await supabase.auth.signInAnonymously();
-
         const newPlayer = await createNewPlayer(demoId);
         setPlayer(newPlayer.player);
         setStats(newPlayer.stats);
@@ -34,12 +32,6 @@ export function useGameState(telegramId: string | null) {
     try {
       setLoading(true);
       setError(null);
-
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        await supabase.auth.signInAnonymously();
-      }
 
       const { data: playerData, error: playerError } = await supabase
         .from('players')
