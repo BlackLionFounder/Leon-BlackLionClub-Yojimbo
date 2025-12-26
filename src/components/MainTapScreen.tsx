@@ -1,30 +1,78 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Player, CalculatedStats } from '../types/game';
 import { getLeonAppearanceForLevel, getLeonTierName, calculateExpRequired } from '../utils/calculations';
-import { TAP_ENERGY_COST, TAP_EXP_REWARD } from '../data/constants';
+import { supabase } from '../lib/supabase';
+
+interface EventLog {
+  id: string;
+  event_type: string;
+  message: string;
+  created_at: string;
+}
 
 interface MainTapScreenProps {
   player: Player;
   stats: CalculatedStats;
-  onTap: (expGained: number, energyConsumed: number) => void;
+  onPatrol: (expGained: number) => void;
+  onEncounter: () => void;
   onHapticFeedback: () => void;
 }
 
-export function MainTapScreen({ player, stats, onTap, onHapticFeedback }: MainTapScreenProps) {
+const PATROL_STAMINA_COST = 1;
+const PATROL_EXP_REWARD = 1;
+const ENCOUNTER_CHANCE = 0.15;
+
+export function MainTapScreen({ player, stats, onPatrol, onEncounter, onHapticFeedback }: MainTapScreenProps) {
   const [tapAnimations, setTapAnimations] = useState<Array<{ id: number; x: number; y: number }>>([]);
+  const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
 
   const leonImage = getLeonAppearanceForLevel(player.level);
   const tierName = getLeonTierName(player.level);
   const expRequired = calculateExpRequired(player.level);
   const expProgress = (player.current_exp / expRequired) * 100;
 
+  useEffect(() => {
+    loadEventLogs();
+  }, [player.id]);
+
+  const loadEventLogs = async () => {
+    const { data } = await supabase
+      .from('event_logs')
+      .select('*')
+      .eq('player_id', player.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (data) {
+      setEventLogs(data);
+    }
+  };
+
+  const addEventLog = async (eventType: string, message: string) => {
+    await supabase.from('event_logs').insert({
+      player_id: player.id,
+      event_type: eventType,
+      message: message
+    });
+    await loadEventLogs();
+  };
+
   const handleTap = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (stats.energy.current < TAP_ENERGY_COST) {
+    if (stats.stamina.current < PATROL_STAMINA_COST) {
       return;
     }
 
     onHapticFeedback();
-    onTap(TAP_EXP_REWARD, TAP_ENERGY_COST);
+
+    const encounterRoll = Math.random();
+    if (encounterRoll < ENCOUNTER_CHANCE && player.has_allocated_points) {
+      addEventLog('encounter', 'Encountered a monster while patrolling!');
+      onEncounter();
+      return;
+    }
+
+    onPatrol(PATROL_EXP_REWARD);
+    addEventLog('patrol', `Uneventful patrol. Gained ${PATROL_EXP_REWARD} EXP.`);
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -37,6 +85,8 @@ export function MainTapScreen({ player, stats, onTap, onHapticFeedback }: MainTa
       setTapAnimations((prev) => prev.filter((anim) => anim.id !== animationId));
     }, 1000);
   };
+
+  const canPatrol = stats.stamina.current >= PATROL_STAMINA_COST;
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 pb-20">
@@ -77,7 +127,7 @@ export function MainTapScreen({ player, stats, onTap, onHapticFeedback }: MainTa
       <div className="flex-1 flex flex-col items-center justify-center px-4 relative">
         <div
           onClick={handleTap}
-          className="relative cursor-pointer active:scale-95 transition-transform select-none"
+          className={`relative cursor-pointer active:scale-95 transition-transform select-none ${!canPatrol ? 'opacity-50' : ''}`}
           style={{ touchAction: 'manipulation' }}
         >
           <img
@@ -93,13 +143,16 @@ export function MainTapScreen({ player, stats, onTap, onHapticFeedback }: MainTa
               className="absolute pointer-events-none text-amber-400 font-bold text-xl animate-float-up"
               style={{ left: anim.x, top: anim.y }}
             >
-              +{TAP_EXP_REWARD}
+              +{PATROL_EXP_REWARD}
             </div>
           ))}
         </div>
 
         <p className="text-gray-400 text-sm mt-4 text-center">
-          Tap Leon to train and gain experience
+          {canPatrol ? 'Tap Leon to Patrol' : 'Not enough stamina to patrol'}
+        </p>
+        <p className="text-gray-500 text-xs mt-1">
+          Costs {PATROL_STAMINA_COST} Stamina • Gain {PATROL_EXP_REWARD} EXP
         </p>
       </div>
 
@@ -133,6 +186,21 @@ export function MainTapScreen({ player, stats, onTap, onHapticFeedback }: MainTa
             <div className="text-white font-bold">
               {Math.floor(stats.energy.current)} / {stats.energy.max}
             </div>
+          </div>
+        </div>
+
+        <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
+          <h3 className="text-gray-300 font-semibold mb-2 text-sm">Event Log</h3>
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {eventLogs.length === 0 ? (
+              <p className="text-gray-500 text-xs">No events yet. Start patrolling!</p>
+            ) : (
+              eventLogs.map((log) => (
+                <div key={log.id} className="text-xs text-gray-400 border-b border-gray-700 pb-1">
+                  {log.message}
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

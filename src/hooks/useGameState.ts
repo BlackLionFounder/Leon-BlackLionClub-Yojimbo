@@ -128,6 +128,7 @@ export function useGameState(telegramId: string | null) {
     let newLevel = player.level;
     let newUnspentAP = player.unspent_ability_points;
     let newTotalAPEarned = player.total_ability_points_earned;
+    let levelsGained = 0;
 
     const apPerLevel = ABILITY_POINTS_PER_LEVEL + (player.referral_bonus_points >= MAX_REFERRAL_BONUSES * REFERRAL_BONUS_AP ? REFERRAL_BONUS_AP : 0);
 
@@ -137,6 +138,7 @@ export function useGameState(telegramId: string | null) {
       newLevel += 1;
       newUnspentAP += apPerLevel;
       newTotalAPEarned += apPerLevel;
+      levelsGained += 1;
     }
 
     const { error } = await supabase
@@ -160,6 +162,14 @@ export function useGameState(telegramId: string | null) {
         unspent_ability_points: newUnspentAP,
         total_ability_points_earned: newTotalAPEarned
       });
+
+      if (levelsGained > 0) {
+        await supabase.from('event_logs').insert({
+          player_id: player.id,
+          event_type: 'level_up',
+          message: `Level Up! Reached level ${newLevel}. Gained ${apPerLevel * levelsGained} AP!`
+        });
+      }
     }
   }, [player, stats]);
 

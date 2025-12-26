@@ -5,7 +5,6 @@ import { GameTab, Monster } from './types/game';
 import { generateMonster } from './data/monsters';
 import { MainTapScreen } from './components/MainTapScreen';
 import { AbilitiesScreen } from './components/AbilitiesScreen';
-import { PatrolScreen } from './components/PatrolScreen';
 import { CombatScreen } from './components/CombatScreen';
 import { FriendsScreen } from './components/FriendsScreen';
 import { EarnScreen } from './components/EarnScreen';
@@ -71,27 +70,24 @@ function App() {
     };
   }, [calculatedStats, stats, updateCurrentStat]);
 
-  const handleTap = async (expGained: number, energyConsumed: number) => {
+  const handlePatrol = async (expGained: number) => {
     if (!calculatedStats) return;
 
     await addExp(expGained);
-    const newEnergy = Math.max(0, calculatedStats.energy.current - energyConsumed);
-    await updateCurrentStat('energy_current', newEnergy);
+    const newStamina = Math.max(0, calculatedStats.stamina.current - 1);
+    await updateCurrentStat('stamina_current', newStamina);
   };
 
-  const handleInvestPoint = async (statName: any) => {
-    await investAbilityPoint(statName);
-  };
-
-  const handleStartPatrol = () => {
+  const handleEncounter = () => {
     if (!player || !calculatedStats) return;
-
-    const newStamina = Math.max(0, calculatedStats.stamina.current - 5);
-    updateCurrentStat('stamina_current', newStamina);
 
     const monster = generateMonster(player.level);
     setCurrentMonster(monster);
     setShowTransition(true);
+  };
+
+  const handleInvestPoint = async (statName: any) => {
+    await investAbilityPoint(statName);
   };
 
   const handleTransitionComplete = () => {
@@ -120,9 +116,6 @@ function App() {
   };
 
   const handleTabChange = (tab: GameTab) => {
-    if (tab === 'patrol' && player && !player.has_allocated_points) {
-      return;
-    }
     hapticFeedback.selection();
     setActiveTab(tab);
   };
@@ -172,18 +165,9 @@ function App() {
         <MainTapScreen
           player={player}
           stats={calculatedStats}
-          onTap={handleTap}
+          onPatrol={handlePatrol}
+          onEncounter={handleEncounter}
           onHapticFeedback={hapticFeedback.light}
-        />
-      )}
-
-      {activeTab === 'patrol' && (
-        <PatrolScreen
-          player={player}
-          stats={calculatedStats}
-          isLocked={!player.has_allocated_points}
-          onStartPatrol={handleStartPatrol}
-          onHapticFeedback={hapticFeedback.medium}
         />
       )}
 
@@ -204,7 +188,7 @@ function App() {
       <Navigation
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        isPatrolLocked={!player.has_allocated_points}
+        unspentPoints={player.unspent_ability_points}
       />
     </div>
   );

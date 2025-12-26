@@ -142,7 +142,7 @@ export interface CombatState {
   log: string[];
 }
 
-export type GameTab = 'main' | 'patrol' | 'abilities' | 'earn' | 'friends';
+export type GameTab = 'main' | 'abilities' | 'earn' | 'friends';
 
 export interface LeonAppearance {
   level: number;
