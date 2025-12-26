@@ -322,12 +322,16 @@ export function useGameState(userId: string | null) {
       .eq('id', player.id);
 
     if (!playerError) {
-      setStats(newStats);
-      setPlayer(prevPlayer => prevPlayer ? {
-        ...prevPlayer,
-        unspent_ability_points: prevPlayer.unspent_ability_points - 1,
-        has_allocated_points: wasFirstAllocation ? true : prevPlayer.has_allocated_points
-      } : prevPlayer);
+      const { data: freshPlayerData } = await supabase
+        .from('players')
+        .select('*')
+        .eq('id', player.id)
+        .single();
+
+      if (freshPlayerData) {
+        setPlayer(freshPlayerData);
+        setStats(newStats);
+      }
     }
   }, [player, stats, calculatedStats]);
 
@@ -405,11 +409,16 @@ export function useGameState(userId: string | null) {
       unspent_ability_points: player.unspent_ability_points + totalInvested
     }).eq('id', player.id);
 
-    setStats(prevStats => prevStats ? { ...prevStats, ...resetStats } : prevStats);
-    setPlayer(prevPlayer => prevPlayer ? {
-      ...prevPlayer,
-      unspent_ability_points: prevPlayer.unspent_ability_points + totalInvested
-    } : prevPlayer);
+    const { data: freshPlayerData } = await supabase
+      .from('players')
+      .select('*')
+      .eq('id', player.id)
+      .single();
+
+    if (freshPlayerData) {
+      setPlayer(freshPlayerData);
+      setStats(prevStats => prevStats ? { ...prevStats, ...resetStats } : prevStats);
+    }
   }, [player, stats]);
 
   return {
