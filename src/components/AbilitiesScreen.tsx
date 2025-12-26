@@ -145,7 +145,7 @@ export function AbilitiesScreen({ player, stats, calculatedStats, onInvest, onRe
           name="Speed"
           description="Attack frequency & initiative"
           invested={stats.speed_invested}
-          effectValue={`${calculatedStats.speed.attacksPerSecond.toFixed(1)} attacks/sec`}
+          effectValue={`${calculatedStats.speed.value} speed (${Math.floor(calculatedStats.speed.value / 10)} attacks/turn)`}
           onInvest={() => handleInvest('speed_invested')}
           canInvest={canInvest}
           color="border-cyan-900"

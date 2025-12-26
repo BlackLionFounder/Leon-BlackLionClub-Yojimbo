@@ -7,6 +7,8 @@ export class CombatManager {
   private onPlayerDamage: (newHealth: number) => void;
   private onMonsterDamage: (newHealth: number) => void;
   private onEnergyChange: (newEnergy: number) => void;
+  private playerSpeedAccumulator: number = 0;
+  private monsterSpeedAccumulator: number = 0;
 
   constructor(
     playerStats: CalculatedStats,
@@ -128,5 +130,24 @@ export class CombatManager {
 
   isMonsterDefeated(): boolean {
     return this.monster.health <= 0;
+  }
+
+  calculateAttacksThisTurn(speed: number, accumulator: number): { attacks: number; newAccumulator: number } {
+    const totalSpeed = speed + accumulator;
+    const attacks = Math.floor(totalSpeed / 10);
+    const newAccumulator = totalSpeed % 10;
+    return { attacks, newAccumulator };
+  }
+
+  getPlayerAttacksThisTurn(): number {
+    const result = this.calculateAttacksThisTurn(this.playerStats.speed.value, this.playerSpeedAccumulator);
+    this.playerSpeedAccumulator = result.newAccumulator;
+    return result.attacks;
+  }
+
+  getMonsterAttacksThisTurn(): number {
+    const result = this.calculateAttacksThisTurn(this.monster.speed, this.monsterSpeedAccumulator);
+    this.monsterSpeedAccumulator = result.newAccumulator;
+    return result.attacks;
   }
 }

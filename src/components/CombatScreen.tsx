@@ -22,6 +22,7 @@ export function CombatScreen({ player, stats, inventory, monster, onCombatEnd, o
   const [playerEnergy, setPlayerEnergy] = useState(initialEnergy);
   const [monsterHealth, setMonsterHealth] = useState(monster.health);
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
+  const [turnNumber, setTurnNumber] = useState(1);
   const [combatManager] = useState(() => {
     const statsCopy = JSON.parse(JSON.stringify(stats));
     statsCopy.health.current = initialHealth;
@@ -54,17 +55,39 @@ export function CombatScreen({ player, stats, inventory, monster, onCombatEnd, o
   };
 
   const executeMonsterTurn = () => {
-    const action = combatManager.monsterAttack();
-    addLog(action.message);
+    const monsterAttacks = combatManager.getMonsterAttacksThisTurn();
+
+    if (monsterAttacks === 0) {
+      addLog(`${monster.name} is too slow to attack this turn!`);
+    } else {
+      for (let i = 0; i < monsterAttacks; i++) {
+        if (combatManager.isPlayerDefeated()) break;
+        const action = combatManager.monsterAttack();
+        addLog(action.message);
+      }
+    }
+
     onHapticFeedback();
     setIsPlayerTurn(true);
+    setTurnNumber(prev => prev + 1);
   };
 
   const handleAttack = () => {
     if (!isPlayerTurn) return;
 
-    const action = combatManager.playerAttack();
-    addLog(action.message);
+    const playerAttacks = combatManager.getPlayerAttacksThisTurn();
+
+    if (playerAttacks === 0) {
+      addLog('Leon is too slow to attack this turn!');
+    } else {
+      addLog(`Turn ${turnNumber}: Leon attacks ${playerAttacks}x!`);
+      for (let i = 0; i < playerAttacks; i++) {
+        if (combatManager.isMonsterDefeated()) break;
+        const action = combatManager.playerAttack();
+        addLog(action.message);
+      }
+    }
+
     onHapticFeedback();
     setIsPlayerTurn(false);
   };
