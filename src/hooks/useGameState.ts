@@ -383,6 +383,35 @@ export function useGameState(userId: string | null) {
     return false;
   }, [player, stats, calculatedStats, inventory]);
 
+  const resetAbilityPoints = useCallback(async () => {
+    if (!player || !stats) return;
+
+    const totalInvested = stats.health_invested + stats.stamina_invested + stats.energy_invested + stats.strength_invested + stats.speed_invested + stats.luck_invested;
+
+    if (totalInvested === 0) return;
+
+    const resetStats: Partial<PlayerStats> = {
+      health_invested: 0,
+      stamina_invested: 0,
+      energy_invested: 0,
+      strength_invested: 0,
+      speed_invested: 0,
+      luck_invested: 0
+    };
+
+    await supabase.from('player_stats').update(resetStats).eq('player_id', player.id);
+
+    await supabase.from('players').update({
+      unspent_ability_points: player.unspent_ability_points + totalInvested
+    }).eq('id', player.id);
+
+    setStats(prevStats => prevStats ? { ...prevStats, ...resetStats } : prevStats);
+    setPlayer(prevPlayer => prevPlayer ? {
+      ...prevPlayer,
+      unspent_ability_points: prevPlayer.unspent_ability_points + totalInvested
+    } : prevPlayer);
+  }, [player, stats]);
+
   return {
     player,
     stats,
@@ -397,6 +426,7 @@ export function useGameState(userId: string | null) {
     investAbilityPoint,
     updateCurrentStat,
     usePotion,
+    resetAbilityPoints,
     refreshData: loadPlayerData
   };
 }

@@ -5,6 +5,7 @@ interface AbilitiesScreenProps {
   stats: PlayerStats;
   calculatedStats: CalculatedStats;
   onInvest: (stat: keyof Omit<PlayerStats, 'player_id' | 'health_base' | 'stamina_base' | 'energy_base' | 'health_current' | 'stamina_current' | 'energy_current'>) => void;
+  onReset: () => void;
   onHapticFeedback: () => void;
 }
 
@@ -50,13 +51,22 @@ function StatRow({ icon, name, description, invested, effectValue, onInvest, can
   );
 }
 
-export function AbilitiesScreen({ player, stats, calculatedStats, onInvest, onHapticFeedback }: AbilitiesScreenProps) {
+export function AbilitiesScreen({ player, stats, calculatedStats, onInvest, onReset, onHapticFeedback }: AbilitiesScreenProps) {
   const canInvest = player.unspent_ability_points > 0;
+  const totalInvested = stats.health_invested + stats.stamina_invested + stats.energy_invested + stats.strength_invested + stats.speed_invested + stats.luck_invested;
+  const canReset = totalInvested > 0;
 
   const handleInvest = (stat: keyof Omit<PlayerStats, 'player_id' | 'health_base' | 'stamina_base' | 'energy_base' | 'health_current' | 'stamina_current' | 'energy_current'>) => {
     if (canInvest) {
       onHapticFeedback();
       onInvest(stat);
+    }
+  };
+
+  const handleReset = () => {
+    if (canReset) {
+      onHapticFeedback();
+      onReset();
     }
   };
 
@@ -67,10 +77,21 @@ export function AbilitiesScreen({ player, stats, calculatedStats, onInvest, onHa
         <p className="text-center text-gray-300 mb-4">Allocate your ability points to strengthen Leon</p>
 
         <div className="bg-gray-800 rounded-lg p-4 border-2 border-amber-500">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-gray-300">Unspent Ability Points</span>
             <span className="text-3xl font-bold text-amber-400">{player.unspent_ability_points}</span>
           </div>
+          <button
+            onClick={handleReset}
+            disabled={!canReset}
+            className={`w-full py-2 rounded-lg font-bold transition-all ${
+              canReset
+                ? 'bg-red-600 text-white hover:bg-red-700 active:scale-95'
+                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            Reset All Points
+          </button>
         </div>
       </div>
 

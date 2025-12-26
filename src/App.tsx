@@ -56,7 +56,8 @@ function App() {
     addCoins,
     investAbilityPoint,
     updateCurrentStat,
-    usePotion
+    usePotion,
+    resetAbilityPoints
   } = useGameState(userId);
 
   const [activeTab, setActiveTab] = useState<GameTab>('main');
@@ -97,7 +98,7 @@ function App() {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    const monster = generateMonster(player.level);
+    const monster = await generateMonster(player.level);
     setCurrentMonster(monster);
     setShowTransition(true);
   };
@@ -249,6 +250,7 @@ function App() {
           stats={stats}
           calculatedStats={calculatedStats}
           onInvest={handleInvestPoint}
+          onReset={resetAbilityPoints}
           onHapticFeedback={hapticFeedback.light}
         />
       )}
