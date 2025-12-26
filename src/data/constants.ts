@@ -14,9 +14,9 @@ export const MAX_REFERRAL_BONUSES = 5;
 
 export const MAX_REFERRAL_BONUS_AP = 50;
 
-export const HEALTH_REGEN_INTERVAL_MS = 60 * 60 * 1000;
+export const HEALTH_REGEN_INTERVAL_MS = 6 * 60 * 1000;
 
-export const STAMINA_REGEN_INTERVAL_MS = 60 * 1000;
+export const STAMINA_REGEN_INTERVAL_MS = 6 * 1000;
 
 export const ENERGY_REGEN_INTERVAL_MS = 1000;
 
