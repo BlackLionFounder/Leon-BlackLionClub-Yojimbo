@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Monster, CalculatedStats, Player } from '../types/game';
+import { Monster, CalculatedStats, Player, InventoryItem } from '../types/game';
 import { CombatManager } from '../utils/combatManager';
 import { getLeonAppearanceForLevel } from '../utils/calculations';
 
 interface CombatScreenProps {
   player: Player;
   stats: CalculatedStats;
+  inventory: InventoryItem[];
   monster: Monster;
   onCombatEnd: (outcome: 'victory' | 'defeat' | 'fled', expGained: number, coinsGained: number, itemsGained: Array<{ itemType: string; quantity: number }>, healthAfter: number, energyAfter: number) => void;
   onHapticFeedback: () => void;
+  onUsePotion: (itemType: string) => Promise<boolean>;
 }
 
-export function CombatScreen({ player, stats, monster, onCombatEnd, onHapticFeedback }: CombatScreenProps) {
+export function CombatScreen({ player, stats, inventory, monster, onCombatEnd, onHapticFeedback, onUsePotion }: CombatScreenProps) {
   const initialHealth = Math.max(1, Math.floor(stats.health.current));
   const initialEnergy = Math.max(0, Math.floor(stats.energy.current));
 
@@ -81,8 +83,31 @@ export function CombatScreen({ player, stats, monster, onCombatEnd, onHapticFeed
 
   const handleItem = () => {
     if (!isPlayerTurn) return;
-    addLog('No items available!');
+
+    if (inventory.length === 0) {
+      addLog('No items available!');
+      onHapticFeedback();
+      return;
+    }
+
+    addLog('Use the potion buttons above Leon!');
     onHapticFeedback();
+  };
+
+  const handleUsePotionInCombat = async (itemType: string) => {
+    const success = await onUsePotion(itemType);
+
+    if (success) {
+      const potionName = itemType === 'health_potion' ? 'Health Potion' : 'Stamina Potion';
+      const healAmount = Math.floor(stats.health.max * 0.5);
+      addLog(`Used ${potionName}! Restored ${healAmount} HP.`);
+      setPlayerHealth(prev => Math.min(prev + healAmount, stats.health.max));
+      onHapticFeedback();
+      setIsPlayerTurn(false);
+    } else {
+      addLog('Cannot use that potion right now!');
+      onHapticFeedback();
+    }
   };
 
   const handleFlee = () => {
@@ -124,6 +149,9 @@ export function CombatScreen({ player, stats, monster, onCombatEnd, onHapticFeed
   const playerHealthPercent = (playerHealth / stats.health.max) * 100;
   const monsterHealthPercent = (monsterHealth / monster.maxHealth) * 100;
 
+  const healthPotions = inventory.find(item => item.item_type === 'health_potion');
+  const staminaPotions = inventory.find(item => item.item_type === 'stamina_potion');
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-gray-900 via-red-950 to-gray-900 pb-20">
       <div className="px-4 py-4 bg-gray-900 border-b border-red-900">
@@ -139,6 +167,34 @@ export function CombatScreen({ player, stats, monster, onCombatEnd, onHapticFeed
               alt="Leon"
               className="w-32 h-32 object-contain mb-2"
             />
+            <div className="flex justify-center gap-2 mb-2">
+              {healthPotions && healthPotions.quantity > 0 && (
+                <button
+                  onClick={() => handleUsePotionInCombat('health_potion')}
+                  disabled={!isPlayerTurn}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-bold transition-all ${
+                    isPlayerTurn
+                      ? 'bg-red-600 text-white hover:bg-red-700 active:scale-95'
+                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  ❤️ {healthPotions.quantity}
+                </button>
+              )}
+              {staminaPotions && staminaPotions.quantity > 0 && (
+                <button
+                  onClick={() => handleUsePotionInCombat('stamina_potion')}
+                  disabled={!isPlayerTurn}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-bold transition-all ${
+                    isPlayerTurn
+                      ? 'bg-yellow-600 text-white hover:bg-yellow-700 active:scale-95'
+                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  ⚡ {staminaPotions.quantity}
+                </button>
+              )}
+            </div>
             <div className="w-full space-y-2">
               <div>
                 <div className="flex justify-between text-xs text-gray-400 mb-1">

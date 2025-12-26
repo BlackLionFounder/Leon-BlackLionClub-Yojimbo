@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Player, PlayerStats, CalculatedStats } from '../types/game';
+import { Player, PlayerStats, CalculatedStats, InventoryItem } from '../types/game';
 import { calculateStats, calculateExpRequired, canLevelUp } from '../utils/calculations';
 import { ABILITY_POINTS_PER_LEVEL, REFERRAL_BONUS_AP, MAX_REFERRAL_BONUSES } from '../data/constants';
 
@@ -8,6 +8,7 @@ export function useGameState(userId: string | null) {
   const [player, setPlayer] = useState<Player | null>(null);
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [calculatedStats, setCalculatedStats] = useState<CalculatedStats | null>(null);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [healthRegenTime, setHealthRegenTime] = useState<number>(0);
@@ -35,6 +36,7 @@ export function useGameState(userId: string | null) {
         const newPlayer = await createNewPlayer(userId);
         setPlayer(newPlayer.player);
         setStats(newPlayer.stats);
+        setInventory(newPlayer.inventory);
       } else {
         setPlayer(playerData);
 
@@ -46,6 +48,13 @@ export function useGameState(userId: string | null) {
 
         if (statsError) throw statsError;
         setStats(statsData);
+
+        const { data: inventoryData } = await supabase
+          .from('player_inventory')
+          .select('*')
+          .eq('player_id', playerData.id);
+
+        setInventory(inventoryData || []);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load player data');
@@ -160,7 +169,12 @@ export function useGameState(userId: string | null) {
             .eq('player_id', existingPlayer.id)
             .single();
 
-          return { player: existingPlayer, stats: existingStats };
+          const { data: existingInventory } = await supabase
+            .from('player_inventory')
+            .select('*')
+            .eq('player_id', existingPlayer.id);
+
+          return { player: existingPlayer, stats: existingStats, inventory: existingInventory || [] };
         }
       }
       throw createError;
@@ -188,7 +202,7 @@ export function useGameState(userId: string | null) {
 
     if (statsError) throw statsError;
 
-    await supabase.from('player_inventory').insert([
+    const { data: inventoryData } = await supabase.from('player_inventory').insert([
       {
         player_id: newPlayerData.id,
         item_type: 'health_potion',
@@ -199,9 +213,9 @@ export function useGameState(userId: string | null) {
         item_type: 'stamina_potion',
         quantity: 5
       }
-    ]);
+    ]).select();
 
-    return { player: newPlayerData, stats: newStatsData };
+    return { player: newPlayerData, stats: newStatsData, inventory: inventoryData || [] };
   };
 
   const addExp = useCallback(async (amount: number) => {
@@ -330,10 +344,50 @@ export function useGameState(userId: string | null) {
     }
   }, [stats, player]);
 
+  const usePotion = useCallback(async (itemType: string) => {
+    if (!player || !stats || !calculatedStats) return false;
+
+    const inventoryItem = inventory.find(item => item.item_type === itemType);
+    if (!inventoryItem || inventoryItem.quantity <= 0) return false;
+
+    let success = false;
+    const updates: Partial<PlayerStats> = {};
+
+    if (itemType === 'health_potion' && stats.health_current < calculatedStats.health.max) {
+      const healAmount = Math.floor(calculatedStats.health.max * 0.5);
+      updates.health_current = Math.min(stats.health_current + healAmount, calculatedStats.health.max);
+      success = true;
+    } else if (itemType === 'stamina_potion' && stats.stamina_current < calculatedStats.stamina.max) {
+      const restoreAmount = Math.floor(calculatedStats.stamina.max * 0.5);
+      updates.stamina_current = Math.min(stats.stamina_current + restoreAmount, calculatedStats.stamina.max);
+      success = true;
+    }
+
+    if (success && Object.keys(updates).length > 0) {
+      const newQuantity = inventoryItem.quantity - 1;
+
+      if (newQuantity === 0) {
+        await supabase.from('player_inventory').delete().eq('id', inventoryItem.id);
+        setInventory(prev => prev.filter(item => item.id !== inventoryItem.id));
+      } else {
+        await supabase.from('player_inventory').update({ quantity: newQuantity }).eq('id', inventoryItem.id);
+        setInventory(prev => prev.map(item => item.id === inventoryItem.id ? { ...item, quantity: newQuantity } : item));
+      }
+
+      await supabase.from('player_stats').update(updates).eq('player_id', player.id);
+      setStats(prevStats => prevStats ? { ...prevStats, ...updates } : prevStats);
+
+      return true;
+    }
+
+    return false;
+  }, [player, stats, calculatedStats, inventory]);
+
   return {
     player,
     stats,
     calculatedStats,
+    inventory,
     loading,
     error,
     healthRegenTime,
@@ -342,6 +396,7 @@ export function useGameState(userId: string | null) {
     addCoins,
     investAbilityPoint,
     updateCurrentStat,
+    usePotion,
     refreshData: loadPlayerData
   };
 }

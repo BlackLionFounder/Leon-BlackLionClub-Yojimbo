@@ -47,6 +47,7 @@ function App() {
     player,
     stats,
     calculatedStats,
+    inventory,
     loading,
     error,
     healthRegenTime,
@@ -54,7 +55,8 @@ function App() {
     addExp,
     addCoins,
     investAbilityPoint,
-    updateCurrentStat
+    updateCurrentStat,
+    usePotion
   } = useGameState(userId);
 
   const [activeTab, setActiveTab] = useState<GameTab>('main');
@@ -218,9 +220,11 @@ function App() {
       <CombatScreen
         player={player}
         stats={calculatedStats}
+        inventory={inventory}
         monster={currentMonster}
         onCombatEnd={handleCombatEnd}
         onHapticFeedback={hapticFeedback.medium}
+        onUsePotion={usePotion}
       />
     );
   }
