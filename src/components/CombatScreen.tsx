@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Monster, CalculatedStats, Player, InventoryItem } from '../types/game';
 import { CombatManager } from '../utils/combatManager';
 import { getLeonAppearanceForLevel } from '../utils/calculations';
+import { getLootMultiplier } from '../utils/effectsManager';
 
 interface CombatScreenProps {
   player: Player;
@@ -149,10 +150,15 @@ export function CombatScreen({ player, stats, inventory, monster, onCombatEnd, o
     }
   };
 
-  const handleVictory = () => {
-    const items = combatManager.rollForItemDrops();
+  const handleVictory = async () => {
+    const lootMultiplier = await getLootMultiplier(player.id);
+    const items = combatManager.rollForItemDrops(lootMultiplier);
     addLog(`Victory! Leon defeated ${monster.name}!`);
     addLog(`Gained ${monster.expReward} EXP and ${monster.coinReward} coins!`);
+
+    if (lootMultiplier > 1) {
+      addLog(`Lucky Draw active! Loot quality increased by ${lootMultiplier}x!`);
+    }
 
     setTimeout(() => {
       onCombatEnd('victory', monster.expReward, monster.coinReward, items, playerHealth, playerEnergy);

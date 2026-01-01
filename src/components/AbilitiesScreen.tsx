@@ -1,4 +1,6 @@
 import { Player, PlayerStats, CalculatedStats } from '../types/game';
+import { useEffects } from '../hooks/useEffects';
+import { CardType } from '../utils/effectsManager';
 
 interface AbilitiesScreenProps {
   player: Player;
@@ -56,6 +58,8 @@ export function AbilitiesScreen({ player, stats, calculatedStats, onInvest, onRe
   const totalInvested = stats.health_invested + stats.stamina_invested + stats.energy_invested + stats.strength_invested + stats.speed_invested + stats.luck_invested;
   const canReset = totalInvested > 0;
 
+  const { playerCards, activeEffects, useCard, loading } = useEffects(player.id);
+
   const handleInvest = (stat: keyof Omit<PlayerStats, 'player_id' | 'health_base' | 'stamina_base' | 'energy_base' | 'health_current' | 'stamina_current' | 'energy_current'>) => {
     if (canInvest) {
       onHapticFeedback();
@@ -68,6 +72,63 @@ export function AbilitiesScreen({ player, stats, calculatedStats, onInvest, onRe
       onHapticFeedback();
       onReset();
     }
+  };
+
+  const handleUseCard = async (cardType: CardType) => {
+    onHapticFeedback();
+    await useCard(cardType);
+  };
+
+  const getCardMultiplier = (cardType: CardType): number => {
+    const multipliers: Record<CardType, number> = {
+      single: 1,
+      double: 2,
+      triple: 3,
+      quadruple: 4,
+      quintuple: 5,
+      lucky_draw: 1,
+    };
+    return multipliers[cardType];
+  };
+
+  const getCardIcon = (cardType: CardType): string => {
+    const icons: Record<CardType, string> = {
+      single: '1️⃣',
+      double: '2️⃣',
+      triple: '3️⃣',
+      quadruple: '4️⃣',
+      quintuple: '5️⃣',
+      lucky_draw: '🍀',
+    };
+    return icons[cardType];
+  };
+
+  const getCardName = (cardType: CardType): string => {
+    const names: Record<CardType, string> = {
+      single: 'Single',
+      double: 'Double',
+      triple: 'Triple',
+      quadruple: 'Quadruple',
+      quintuple: 'Quintuple',
+      lucky_draw: 'Lucky Draw',
+    };
+    return names[cardType];
+  };
+
+  const formatTimeRemaining = (expiresAt: string) => {
+    const now = new Date().getTime();
+    const expires = new Date(expiresAt).getTime();
+    const diff = expires - now;
+
+    if (diff <= 0) return '0m';
+
+    const hours = Math.floor(diff / (60 * 60 * 1000));
+    const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
   };
 
   return (
@@ -96,6 +157,92 @@ export function AbilitiesScreen({ player, stats, calculatedStats, onInvest, onRe
       </div>
 
       <div className="px-4 py-6 space-y-4">
+        <div className="bg-gray-800 rounded-lg p-4 border-2 border-yellow-600">
+          <h2 className="text-xl font-bold text-yellow-400 mb-3">Boost Cards</h2>
+
+          {activeEffects.length > 0 && (
+            <div className="mb-4 p-3 bg-green-900 bg-opacity-30 border border-green-500 rounded-lg">
+              <p className="text-green-300 font-semibold mb-2">Active Effects:</p>
+              {activeEffects.map((effect) => (
+                <div key={effect.id} className="text-sm text-green-200">
+                  {effect.effect_type === 'loot_multiplier'
+                    ? `${effect.multiplier}x Loot Quality`
+                    : `${effect.multiplier}x XP Multiplier`
+                  } - Expires in {formatTimeRemaining(effect.expires_at)}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {playerCards.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-3">
+              No cards available. Complete quests to earn cards!
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {playerCards.filter(card => card.card_type !== 'lucky_draw').map((card) => (
+                  <button
+                    key={card.id}
+                    onClick={() => handleUseCard(card.card_type)}
+                    disabled={card.quantity === 0 || loading}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      card.quantity > 0
+                        ? 'bg-gray-700 border-yellow-500 hover:bg-gray-600 active:scale-95'
+                        : 'bg-gray-800 border-gray-600 opacity-50 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className="text-3xl mb-1">{getCardIcon(card.card_type)}</div>
+                    <div className="text-white font-bold text-sm">{getCardName(card.card_type)}</div>
+                    <div className="text-yellow-400 text-xs">{getCardMultiplier(card.card_type)}x XP</div>
+                    <div className="text-gray-400 text-xs mt-1">
+                      {card.quantity > 0 ? `x${card.quantity}` : 'None'}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {playerCards.some(card => card.card_type !== 'lucky_draw') && (
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  Using a card adds +1 hour to the XP multiplier effect
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        {playerCards.some(card => card.card_type === 'lucky_draw') && (
+          <div className="bg-gray-800 rounded-lg p-4 border-2 border-green-600">
+            <h2 className="text-xl font-bold text-green-400 mb-3">Lucky Draw Cards</h2>
+            <p className="text-sm text-gray-400 mb-3">Increases loot quality and quantity from combat</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              {playerCards.filter(card => card.card_type === 'lucky_draw').map((card) => (
+                <button
+                  key={card.id}
+                  onClick={() => handleUseCard(card.card_type)}
+                  disabled={card.quantity === 0 || loading}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    card.quantity > 0
+                      ? 'bg-gray-700 border-green-500 hover:bg-gray-600 active:scale-95'
+                      : 'bg-gray-800 border-gray-600 opacity-50 cursor-not-allowed'
+                  }`}
+                >
+                  <div className="text-3xl mb-1">{getCardIcon(card.card_type)}</div>
+                  <div className="text-white font-bold text-sm">{getCardName(card.card_type)}</div>
+                  <div className="text-green-400 text-xs">+Loot</div>
+                  <div className="text-gray-400 text-xs mt-1">
+                    {card.quantity > 0 ? `x${card.quantity}` : 'None'}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <p className="text-xs text-gray-500 mt-3 text-center">
+              Using a card adds +1 hour to the loot boost effect
+            </p>
+          </div>
+        )}
+
         <StatRow
           icon="❤️"
           name="Health"

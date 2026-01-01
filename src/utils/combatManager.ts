@@ -109,14 +109,17 @@ export class CombatManager {
     return this.playerStats.speed.value >= this.monster.speed ? 'player' : 'monster';
   }
 
-  rollForItemDrops(): Array<{ itemType: string; quantity: number }> {
+  rollForItemDrops(lootMultiplier: number = 1): Array<{ itemType: string; quantity: number }> {
     const drops: Array<{ itemType: string; quantity: number }> = [];
 
     for (const drop of this.monster.dropTable) {
-      if (Math.random() < drop.dropChance) {
+      const effectiveDropChance = Math.min(1, drop.dropChance * lootMultiplier);
+
+      if (Math.random() < effectiveDropChance) {
+        const effectiveQuantity = Math.max(1, Math.floor(drop.quantity * lootMultiplier));
         drops.push({
           itemType: drop.itemType,
-          quantity: drop.quantity
+          quantity: effectiveQuantity
         });
       }
     }

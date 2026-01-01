@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 
-export type CardType = 'single' | 'double' | 'triple' | 'quadruple' | 'quintuple';
-export type EffectType = 'xp_multiplier' | 'coin_multiplier';
+export type CardType = 'single' | 'double' | 'triple' | 'quadruple' | 'quintuple' | 'lucky_draw';
+export type EffectType = 'xp_multiplier' | 'coin_multiplier' | 'loot_multiplier';
 
 const CARD_MULTIPLIERS: Record<CardType, number> = {
   single: 1,
@@ -9,6 +9,7 @@ const CARD_MULTIPLIERS: Record<CardType, number> = {
   triple: 3,
   quadruple: 4,
   quintuple: 5,
+  lucky_draw: 1,
 };
 
 const EFFECT_DURATION_HOURS = 1;
@@ -32,8 +33,9 @@ export interface PlayerCard {
 export const activateCard = async (
   playerId: string,
   cardType: CardType,
-  effectType: EffectType = 'xp_multiplier'
+  effectType?: EffectType
 ): Promise<{ success: boolean; error?: string }> => {
+  const finalEffectType = effectType || (cardType === 'lucky_draw' ? 'loot_multiplier' : 'xp_multiplier');
   const multiplier = CARD_MULTIPLIERS[cardType];
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + EFFECT_DURATION_HOURS);
@@ -57,7 +59,7 @@ export const activateCard = async (
     .from('active_effects')
     .select('*')
     .eq('player_id', playerId)
-    .eq('effect_type', effectType)
+    .eq('effect_type', finalEffectType)
     .eq('multiplier', multiplier)
     .gt('expires_at', new Date().toISOString())
     .maybeSingle();
@@ -83,7 +85,7 @@ export const activateCard = async (
       .from('active_effects')
       .insert({
         player_id: playerId,
-        effect_type: effectType,
+        effect_type: finalEffectType,
         multiplier,
         expires_at: expiresAt.toISOString(),
       });
@@ -126,6 +128,10 @@ export const getCurrentMultiplier = async (
   }
 
   return effects[0].multiplier;
+};
+
+export const getLootMultiplier = async (playerId: string): Promise<number> => {
+  return getCurrentMultiplier(playerId, 'loot_multiplier');
 };
 
 export const getActiveEffects = async (
