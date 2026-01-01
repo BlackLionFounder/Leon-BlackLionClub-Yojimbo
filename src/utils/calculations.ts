@@ -95,17 +95,17 @@ export function calculateFleeChance(playerSpeed: number, monsterSpeed: number): 
 }
 
 export function getLeonAppearanceForLevel(level: number): string {
-  if (level >= 100) return '/images/leon-cherub.png';
-  if (level >= 90) return '/images/leon-angel.png';
-  if (level >= 80) return '/images/leon-sengoku.png';
-  if (level >= 70) return '/images/leon-level-70.png';
-  if (level >= 60) return '/images/leon-level-60.png';
-  if (level >= 50) return '/images/leon-level-50.png';
-  if (level >= 40) return '/images/leon-level-40.png';
-  if (level >= 30) return '/images/leon-level-30.png';
-  if (level >= 20) return '/images/leon-level-20.png';
-  if (level >= 10) return '/images/leon-level-10.png';
-  return '/images/leon-level-1.png';
+  if (level >= 100) return 'https://placehold.co/512x512/9333ea/ffffff?text=Cherub+Lv100';
+  if (level >= 90) return 'https://placehold.co/512x512/a855f7/ffffff?text=Angel+Lv90';
+  if (level >= 80) return 'https://placehold.co/512x512/c084fc/ffffff?text=Sengoku+Lv80';
+  if (level >= 70) return 'https://placehold.co/512x512/d8b4fe/000000?text=Legendary+Lv70';
+  if (level >= 60) return 'https://placehold.co/512x512/e9d5ff/000000?text=Master+Lv60';
+  if (level >= 50) return 'https://placehold.co/512x512/3b82f6/ffffff?text=Elite+Lv50';
+  if (level >= 40) return 'https://placehold.co/512x512/60a5fa/000000?text=Heavy+Lv40';
+  if (level >= 30) return 'https://placehold.co/512x512/93c5fd/000000?text=Medium+Lv30';
+  if (level >= 20) return 'https://placehold.co/512x512/22c55e/ffffff?text=Light+Lv20';
+  if (level >= 10) return 'https://placehold.co/512x512/4ade80/000000?text=Kosode+Lv10';
+  return 'https://placehold.co/512x512/86efac/000000?text=Leon+Lv1';
 }
 
 export function getLeonTierName(level: number): string {
