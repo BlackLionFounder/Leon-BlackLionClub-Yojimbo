@@ -18,13 +18,14 @@ interface MainTapScreenProps {
   onPatrol: (expGained: number) => void;
   onEncounter: () => void;
   onHapticFeedback: () => void;
+  onLogout?: () => void;
 }
 
 const PATROL_STAMINA_COST = 1;
 const PATROL_EXP_REWARD = 1;
 const ENCOUNTER_CHANCE = 0.15;
 
-export function MainTapScreen({ player, stats, healthRegenTime, staminaRegenTime, onPatrol, onEncounter, onHapticFeedback }: MainTapScreenProps) {
+export function MainTapScreen({ player, stats, healthRegenTime, staminaRegenTime, onPatrol, onEncounter, onHapticFeedback, onLogout }: MainTapScreenProps) {
   const [tapAnimations, setTapAnimations] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
 
@@ -108,9 +109,17 @@ export function MainTapScreen({ player, stats, healthRegenTime, staminaRegenTime
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 pb-20">
       <div className="flex flex-col items-center px-4 py-6 space-y-4">
-        <div className="text-center">
+        <div className="text-center relative w-full">
           <h1 className="text-3xl font-bold text-amber-400">Leon & the Black Lion Club</h1>
           <p className="text-lg text-gray-300 mt-1">Yojimbo</p>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="absolute top-0 right-0 px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+            >
+              Logout
+            </button>
+          )}
         </div>
 
         <div className="w-full max-w-md space-y-2">
