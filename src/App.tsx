@@ -12,6 +12,7 @@ import { EarnScreen } from './components/EarnScreen';
 import { Navigation } from './components/Navigation';
 import { SpiralTransition } from './components/SpiralTransition';
 import { AuthScreen } from './components/AuthScreen';
+import { DemoControls } from './components/DemoControls';
 
 function App() {
   const { hapticFeedback } = useTelegram();
@@ -57,7 +58,8 @@ function App() {
     investAbilityPoint,
     updateCurrentStat,
     usePotion,
-    resetAbilityPoints
+    resetAbilityPoints,
+    refreshData
   } = useGameState(userId);
 
   const [activeTab, setActiveTab] = useState<GameTab>('main');
@@ -263,6 +265,13 @@ function App() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         unspentPoints={player.unspent_ability_points}
+      />
+
+      <DemoControls
+        player={player}
+        onAddExp={addExp}
+        onSpawnBattle={handleEncounter}
+        onRefresh={refreshData}
       />
     </div>
   );
