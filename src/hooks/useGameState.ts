@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { Player, PlayerStats, CalculatedStats, InventoryItem } from '../types/game';
 import { calculateStats, calculateExpRequired, canLevelUp } from '../utils/calculations';
 import { ABILITY_POINTS_PER_LEVEL, REFERRAL_BONUS_AP, MAX_REFERRAL_BONUSES } from '../data/constants';
+import { getCurrentMultiplier } from '../utils/effectsManager';
+import { updateQuestProgress } from '../utils/questsManager';
 
 export function useGameState(userId: string | null) {
   const [player, setPlayer] = useState<Player | null>(null);
@@ -149,7 +151,9 @@ export function useGameState(userId: string | null) {
         referral_bonus_points: 0,
         referral_count: 0,
         rejuvenation_potions: 0,
-        has_allocated_points: false
+        has_allocated_points: false,
+        combat_wins: 0,
+        total_taps: 0
       })
       .select()
       .single();
@@ -218,10 +222,17 @@ export function useGameState(userId: string | null) {
     return { player: newPlayerData, stats: newStatsData, inventory: inventoryData || [] };
   };
 
-  const addExp = useCallback(async (amount: number) => {
+  const addExp = useCallback(async (amount: number, applyMultiplier: boolean = true) => {
     if (!player || !stats) return;
 
-    let newExp = player.current_exp + amount;
+    let finalAmount = amount;
+
+    if (applyMultiplier) {
+      const multiplier = await getCurrentMultiplier(player.id);
+      finalAmount = amount * multiplier;
+    }
+
+    let newExp = player.current_exp + finalAmount;
     let newLevel = player.level;
     let newUnspentAP = player.unspent_ability_points;
     let newTotalAPEarned = player.total_ability_points_earned;
@@ -243,7 +254,7 @@ export function useGameState(userId: string | null) {
       .update({
         level: newLevel,
         current_exp: newExp,
-        total_exp: player.total_exp + amount,
+        total_exp: player.total_exp + finalAmount,
         unspent_ability_points: newUnspentAP,
         total_ability_points_earned: newTotalAPEarned,
         updated_at: new Date().toISOString()
@@ -255,7 +266,7 @@ export function useGameState(userId: string | null) {
         ...player,
         level: newLevel,
         current_exp: newExp,
-        total_exp: player.total_exp + amount,
+        total_exp: player.total_exp + finalAmount,
         unspent_ability_points: newUnspentAP,
         total_ability_points_earned: newTotalAPEarned
       });
@@ -266,6 +277,8 @@ export function useGameState(userId: string | null) {
           event_type: 'level_up',
           message: `Level Up! Reached level ${newLevel}. Gained ${apPerLevel * levelsGained} AP!`
         });
+
+        await updateQuestProgress(player.id, 'reach_level', newLevel);
       }
     }
   }, [player, stats]);
@@ -283,6 +296,44 @@ export function useGameState(userId: string | null) {
 
     if (!error) {
       setPlayer({ ...player, coins: player.coins + amount });
+    }
+  }, [player]);
+
+  const incrementTapCount = useCallback(async () => {
+    if (!player) return;
+
+    const newTapCount = player.total_taps + 1;
+
+    const { error } = await supabase
+      .from('players')
+      .update({
+        total_taps: newTapCount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', player.id);
+
+    if (!error) {
+      setPlayer({ ...player, total_taps: newTapCount });
+      await updateQuestProgress(player.id, 'total_taps', newTapCount);
+    }
+  }, [player]);
+
+  const incrementCombatWins = useCallback(async () => {
+    if (!player) return;
+
+    const newCombatWins = player.combat_wins + 1;
+
+    const { error } = await supabase
+      .from('players')
+      .update({
+        combat_wins: newCombatWins,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', player.id);
+
+    if (!error) {
+      setPlayer({ ...player, combat_wins: newCombatWins });
+      await updateQuestProgress(player.id, 'combat_wins', newCombatWins);
     }
   }, [player]);
 
@@ -432,6 +483,8 @@ export function useGameState(userId: string | null) {
     staminaRegenTime,
     addExp,
     addCoins,
+    incrementTapCount,
+    incrementCombatWins,
     investAbilityPoint,
     updateCurrentStat,
     usePotion,

@@ -13,6 +13,8 @@ export interface Player {
   rejuvenation_potions: number;
   referred_by: string | null;
   has_allocated_points: boolean;
+  combat_wins: number;
+  total_taps: number;
   last_health_regen: string;
   last_stamina_regen: string;
   last_energy_regen: string;

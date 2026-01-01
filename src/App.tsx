@@ -55,6 +55,8 @@ function App() {
     staminaRegenTime,
     addExp,
     addCoins,
+    incrementTapCount,
+    incrementCombatWins,
     investAbilityPoint,
     updateCurrentStat,
     usePotion,
@@ -87,6 +89,7 @@ function App() {
     if (!calculatedStats) return;
 
     await addExp(expGained);
+    await incrementTapCount();
     const newStamina = Math.max(0, calculatedStats.stamina.current - 1);
     await updateCurrentStat('stamina_current', newStamina);
   };
@@ -134,6 +137,7 @@ function App() {
     if (outcome === 'victory') {
       await addExp(expGained);
       await addCoins(coinsGained);
+      await incrementCombatWins();
 
       if (player && currentMonster) {
         await supabase.from('event_logs').insert({
